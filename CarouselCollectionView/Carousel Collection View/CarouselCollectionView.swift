@@ -14,6 +14,7 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
                                                                        UICollectionViewDelegateFlowLayout {
     
     // MARK: Properties
+    
     private var autoScrollingTimer: Timer?
     private var currentVisibleCellIndex: Int = 0
     
@@ -27,6 +28,7 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
     
     private let cellForItemAtObserver: CellForItemAtObserver
     var cellSelectionObserver: ((_ indexPath: IndexPath) -> ())?
+    var cellSizeObserver: ((_ indexPath: IndexPath) -> CGSize)?
     
     private var models: [Model] = []
     
@@ -45,13 +47,13 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
     private lazy var collectionView: UICollectionView = {
         let cv = UICollectionView(frame: .zero,
                                   collectionViewLayout: self.collectionLayout)
-        cv.backgroundColor = .yellow
         cv.delegate = self
         cv.dataSource = self
         cv.showsHorizontalScrollIndicator = false
         cv.showsVerticalScrollIndicator = false
         cv.translatesAutoresizingMaskIntoConstraints = false
         cv.isPagingEnabled = true
+        cv.backgroundColor = .clear
         return cv
     }()
     
@@ -86,7 +88,7 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
         self.addSubview(pageControl)
         
         self.bottomAnchorOfCollectionView = collectionView.bottomAnchor.constraint(equalTo: self.pageControl.topAnchor)
-        self.heightOfPageController = pageControl.heightAnchor.constraint(equalToConstant: 50)
+        self.heightOfPageController = pageControl.heightAnchor.constraint(equalToConstant: 38)
         NSLayoutConstraint.activate([
             collectionView.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
@@ -101,7 +103,13 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
     }
     
     private func registerCell() {
-        self.collectionView.register(Cell.self, forCellWithReuseIdentifier: self.cellID)
+        let bundle = Bundle(for: Self.classForCoder())
+        if bundle.path(forResource: self.cellID, ofType: "nib") != nil {
+            let nib = UINib(nibName: self.cellID, bundle: bundle)
+            self.collectionView.register(nib, forCellWithReuseIdentifier: self.cellID)
+        } else {
+            self.collectionView.register(Cell.self, forCellWithReuseIdentifier: self.cellID)
+        }
     }
     
     /// Default it is visible.
@@ -134,6 +142,11 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
         self.collectionView.reloadData()
     }
     
+    /// Default is clear colour.
+    func setBackgroundColor(color: UIColor) {
+        self.collectionView.backgroundColor = color
+    }
+    
     /// Will autoscroll collection view's cells.
     func startAutoScrolling(interval: TimeInterval,
                             resetAndScrollToFirstCell: Bool = true,
@@ -144,10 +157,10 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
             currentVisibleCellIndex = 0
             if animateWhileReseting {
                 UIView.animate(withDuration: 0.3, animations: { [weak self] in
-                    self?.collectionView.contentOffset.x = 0
+                    self?.collectionView.contentOffset.x = -(self?.collectionView.contentInset.left ?? 0)
                 })
             } else {
-                self.collectionView.contentOffset.x = 0
+                self.collectionView.contentOffset.x = -self.collectionView.contentInset.left
             }
         }
         
@@ -165,10 +178,12 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
     }
     
     /// Stops auto scrolling of the collection view and sets first cell as a visible cell.
-    func stopAutoscrolling() {
+    func stopAutoscrolling(scrollToFirstCell: Bool = true) {
         autoScrollingTimer?.invalidate()
         currentVisibleCellIndex = 0
-        self.collectionView.contentOffset.x = 0
+        if scrollToFirstCell {
+            self.collectionView.contentOffset.x = -self.collectionView.contentInset.left
+        }
     }
     
     /// Default value is set true. Manual  reloading is required after calling thing function.
@@ -191,6 +206,11 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
         self.collectionLayout.minimumInteritemSpacing = spacing
     }
     
+    /// Collection view's contentInset.
+    func setContentInset(contentInset: UIEdgeInsets) {
+        self.collectionView.contentInset = contentInset
+    }
+    
     // MARK: Collection view delegate & data sources.
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -205,14 +225,17 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        if (self.visibilitySizeForNextCell != 0 && self.makeSingleCellFullSized && self.models.count == 1) {
-            return .init(width: collectionView.bounds.width, height: collectionView.frame.height)
-        } else  {
-            let width: CGFloat = collectionView.bounds.width - self.visibilitySizeForNextCell - spacingBetweenCells
-            return .init(width: width,
-                         height: collectionView.frame.height)
+        if let cellSizeObserver = cellSizeObserver {
+            return cellSizeObserver(indexPath)
+        } else {
+            if (self.visibilitySizeForNextCell != 0 && self.makeSingleCellFullSized && self.models.count == 1) {
+                return .init(width: collectionView.bounds.width, height: collectionView.frame.height)
+            } else  {
+                let width: CGFloat = collectionView.bounds.width - self.visibilitySizeForNextCell - spacingBetweenCells
+                return .init(width: width,
+                             height: collectionView.frame.height)
+            }
         }
-        
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {

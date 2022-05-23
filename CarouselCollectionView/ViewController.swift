@@ -16,7 +16,7 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
-        
+        self.view.backgroundColor = .darkGray
         self.view.addSubview(cv)
         cv.frame = .init(x: 0, y: 100, width: self.view.frame.width, height: 400)
         
@@ -26,7 +26,8 @@ class ViewController: UIViewController {
         }
 
         cv.setModelsAndReloadView(models: models)
-        cv.startAutoScrolling(interval: 1)
+
+
     }
 
 }
