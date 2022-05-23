@@ -12,7 +12,6 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
                                                                        UICollectionViewDelegate,
                                                                        UICollectionViewDataSource,
                                                                        UICollectionViewDelegateFlowLayout {
-    
     // MARK: Properties
     
     private var autoScrollingTimer: Timer?
@@ -114,13 +113,13 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
     
     /// Default it is visible.
     func hideShowPageControl(shouldHide: Bool) {
-        self.pageControl.isHidden = shouldHide
-        
         if shouldHide {
             self.bottomAnchorOfCollectionView = collectionView.bottomAnchor.constraint(equalTo: self.bottomAnchor)
         } else {
             self.bottomAnchorOfCollectionView = collectionView.bottomAnchor.constraint(equalTo: self.pageControl.topAnchor)
         }
+        bottomAnchorOfCollectionView.isActive = true
+        self.pageControl.isHidden = shouldHide
     }
     
     func setHeightOfPageController(height: CGFloat) {
