@@ -14,6 +14,8 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
                                                                        UICollectionViewDelegateFlowLayout {
     
     // MARK: Properties
+    private var autoScrollingTimer: Timer?
+    private var currentVisibleCellIndex: Int = 0
     
     private var makeSingleCellFullSized: Bool = true
     private var visibilitySizeForNextCell: CGFloat = 0
@@ -24,6 +26,7 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
     typealias CellForItemAtObserver = (_ model: Model, _ cell: Cell, _ indexPath: IndexPath) -> Void
     
     private let cellForItemAtObserver: CellForItemAtObserver
+    var cellSelectionObserver: ((_ indexPath: IndexPath) -> ())?
     
     private var models: [Model] = []
     
@@ -131,6 +134,43 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
         self.collectionView.reloadData()
     }
     
+    /// Will autoscroll collection view's cells.
+    func startAutoScrolling(interval: TimeInterval,
+                            resetAndScrollToFirstCell: Bool = true,
+                            animateWhileReseting: Bool = false) {
+        autoScrollingTimer?.invalidate()
+        
+        if resetAndScrollToFirstCell {
+            currentVisibleCellIndex = 0
+            if animateWhileReseting {
+                UIView.animate(withDuration: 0.3, animations: { [weak self] in
+                    self?.collectionView.contentOffset.x = 0
+                })
+            } else {
+                self.collectionView.contentOffset.x = 0
+            }
+        }
+        
+        autoScrollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            self.currentVisibleCellIndex += 1
+            if self.currentVisibleCellIndex >= self.models.count {
+                self.currentVisibleCellIndex = 0
+            }
+            self.collectionView.scrollToItem(at: IndexPath(row: self.currentVisibleCellIndex, section: 0),
+                                             at: .centeredHorizontally,
+                                             animated: true)
+        }
+    }
+    
+    /// Stops auto scrolling of the collection view and sets first cell as a visible cell.
+    func stopAutoscrolling() {
+        autoScrollingTimer?.invalidate()
+        currentVisibleCellIndex = 0
+        self.collectionView.contentOffset.x = 0
+    }
+    
     /// Default value is set true. Manual  reloading is required after calling thing function.
     func setScrollPaging(isEnable: Bool) {
         self.collectionView.isPagingEnabled = isEnable
@@ -173,6 +213,10 @@ final class CarouselCollectionView<Model, Cell: UICollectionViewCell>: UIView,
                          height: collectionView.frame.height)
         }
         
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        cellSelectionObserver?(indexPath)
     }
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {

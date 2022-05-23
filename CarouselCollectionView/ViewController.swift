@@ -21,11 +21,12 @@ class ViewController: UIViewController {
         cv.frame = .init(x: 0, y: 100, width: self.view.frame.width, height: 400)
         
         var models: [SampleMode] = []
-        for i in 1...50 {
+        for i in 1...5 {
             models.append(.init(name: "\(i)"))
         }
 
         cv.setModelsAndReloadView(models: models)
+        cv.startAutoScrolling(interval: 1)
     }
 
 }
